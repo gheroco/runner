@@ -30,13 +30,11 @@ namespace GitHub.Runner.Common
     }
 
     [ServiceLocator(Default = typeof(ProcessChannel))]
-    public interface IProcessChannel : IDisposable, IRunnerService
+    public interface IProcessChannel : IWorkerMessageTransport, IRunnerService
     {
         void StartServer(StartProcessDelegate startProcess);
         void StartClient(string pipeNameInput, string pipeNameOutput);
 
-        Task SendAsync(MessageType messageType, string body, CancellationToken cancellationToken);
-        Task<WorkerMessage> ReceiveAsync(CancellationToken cancellationToken);
     }
 
     public sealed class ProcessChannel : RunnerService, IProcessChannel

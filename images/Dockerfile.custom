@@ -1,0 +1,16 @@
+# Build from this fork's _layout, never from an upstream release download.
+# Run src/dev.sh layout Release linux-x64 before docker build.
+ARG RUNTIME_IMAGE=mcr.microsoft.com/dotnet/runtime-deps:8.0-noble
+FROM ${RUNTIME_IMAGE}
+ARG FORK_COMMIT
+LABEL org.opencontainers.image.source="https://github.com/gheroco/runner" \
+      org.opencontainers.image.revision="${FORK_COMMIT}"
+ENV RUNNER_MANUALLY_TRAP_SIG=1 ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1 ImageOS=ubuntu24
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1001 --shell /bin/bash runner
+WORKDIR /home/runner
+COPY --chown=1001:1001 _layout/ /home/runner/
+RUN test -x bin/Runner.Listener && test -x bin/Runner.Worker && test -f run.sh
+USER 1001:1001
+CMD ["/home/runner/run.sh"]

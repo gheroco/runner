@@ -47,6 +47,32 @@ namespace GitHub.Runner.Common.Tests.Listener
             return result;
         }
 
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Runner")]
+        public async Task RunServiceRenewalRecoversAfterTransientFailure()
+        {
+            using var hc = new TestHostContext(this);
+            hc.SetSingleton<IRunServer>(_runServer.Object);
+            hc.SetSingleton<IConfigurationStore>(_configurationStore.Object);
+            _configurationStore.Setup(x => x.GetSettings()).Returns(new RunnerSettings { PoolId = 1 });
+            var firstRenewed = new TaskCompletionSource<int>();
+            _runServer.SetupSequence(x => x.RenewJobAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new RenewJobResponse { LockedUntil = DateTime.UtcNow.AddMinutes(5) })
+                .ThrowsAsync(new System.Net.Http.HttpRequestException("Transient renewal failure"))
+                .ReturnsAsync(new RenewJobResponse { LockedUntil = DateTime.UtcNow.AddMinutes(6) })
+                .ThrowsAsync(new TaskOrchestrationJobNotFoundException("Job finished"));
+            var dispatcher = new JobDispatcher();
+            dispatcher.Initialize(hc);
+            EnableRunServiceJobForJobDispatcher(dispatcher);
+
+            await dispatcher.RenewJobRequestAsync(GetAgentJobRequestMessage(), GetServiceEndpoint(),
+                1, 1000, Guid.Empty, Guid.NewGuid().ToString(), firstRenewed, CancellationToken.None);
+
+            Assert.True(firstRenewed.Task.IsCompletedSuccessfully);
+            _runServer.Verify(x => x.RenewJobAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
+        }
+
         [Theory]
         [Trait("Level", "L0")]
         [Trait("Category", "Runner")]
