@@ -69,6 +69,13 @@ namespace GitHub.Runner.Worker
             Trace.Entering();
             ArgUtil.NotNull(ExecutionContext, nameof(ExecutionContext));
             ArgUtil.NotNull(Action, nameof(Action));
+            if (AsyncBrokerAction.Enabled)
+            {
+                if (Stage != ActionRunStage.Main)
+                    throw new InvalidOperationException("Async actions cannot register pre/post handlers.");
+                await AsyncBrokerAction.RunAsync(Action, ExecutionContext);
+                return;
+            }
             var taskManager = HostContext.GetService<IActionManager>();
             var handlerFactory = HostContext.GetService<IHandlerFactory>();
 

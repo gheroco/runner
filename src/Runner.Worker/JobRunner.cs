@@ -187,6 +187,7 @@ namespace GitHub.Runner.Worker
                 try
                 {
                     Trace.Info("Initialize job. Getting all job steps.");
+                    AsyncBrokerAction.ValidateJob(message);
                     jobSteps = await jobExtension.InitializeJob(jobContext, message);
                 }
                 catch (OperationCanceledException ex) when (jobContext.CancellationToken.IsCancellationRequested)
